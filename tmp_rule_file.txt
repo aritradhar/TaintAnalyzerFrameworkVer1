@@ -1,0 +1,328 @@
+//author Aritra Dhar
+//aritra.dhar@accenture.com
+//Accenture Tech Labs, Bangalore, India
+//Version 1.5 alpha
+//restricted access
+//SQLi, SOQLi, NOSQLi, XSS analysis datalog platform
+//rule file
+
+//--------------------------------------------------------------------------------------------
+//rules for new object
+NewObject(?node):-Invoke(?node,'_constructor',?int,?var).
+NewObject(?node):-SpecialInvoke(?node,'_constructor',?int,?var).
+NewObject(?node):-SetType(?node,?var,?type).
+//--------------------------------------------------------------------------------------------
+
+//--------------------------------------------------------------------------------------------
+//DefVar (normal and temp) relations to trace a variable defination and related
+DefVar(?node,?var):-SetType(?node,?var,?type).
+//temp veriables like #tempx
+DefVarT(?node,?var):-Invoke(?node,?methodname,?int,?var),!SetType(?somenode,?var,?type).
+DefVarT(?node,?var):-VirtualInvoke(?node,?methodname,?int,?var),!SetType(?somenode,?var,?type).
+DefVarT(?node,?var):-InterfaceInvoke(?node,?methodname,?int,?var),!SetType(?somenode,?var,?type).
+DefVarT(?node,?var):-SpecialInvoke(?node,?methodname,?int,?var),!SetType(?somenode,?var,?type).
+
+DefVar(?node,?var):-Invoke(?node,?methodname,?int,?var).
+DefVar(?node,?var):-VirtualInvoke(?node,?methodname,?int,?var).
+DefVar(?node,?var):-InterfaceInvoke(?node,?methodname,?int,?var).
+DefVar(?node,?var):-SpecialInvoke(?node,?methodname,?int,?var).
+
+Defvar(?node,?var):-Assign(?node,?object,?var,?anyvar),Defvar(?somenode,?anyvar).
+//--------------------------------------------------------------------------------------------
+
+
+//--------------------------------------------------------------------------------------------
+//TaintVuln(?methodname) description
+//This relation will detecct taint vulnerability of any method from the knowledgebase.
+//If a method is invoked in a function and marked in the knowledgebase as a potential taintsouce
+//then it will be detected
+
+TaintVuln(?methodname):-InterfaceInvoke(?nodeid,?methodname,?int,?var), TaintSource(?objectType,?methodname), SetInvokeParam(?nodeid,?methodname,'0',?var1), SetType(?wildcardnodeID,?var1,?objectType).
+TaintVuln(?methodname):-VirtualInvoke(?nodeid,?methodname,?int,?var), TaintSource(?objectType,?methodname), SetInvokeParam(?nodeid,?methodname,'0',?var1), SetType(?wildcardnodeID,?var1,?objectType).
+TaintVuln(?methodname):-Invoke(?nodeid,?methodname,?int,?var), TaintSource(?objectType,?methodname), SetInvokeParam(?nodeid,?methodname,'0',?var1), SetType(?wildcardnodeID,?var1,?objectType).
+
+TaintVuln(?methodname):-NonPropagatingTaint(?methodname,?var1).
+//---------------------------------------------------------------------------------------------
+
+//---------------------------------------------------------------------------------------------
+//ImMutablevar(?var) and MutableVar(?var) will determine if a variable/object is mutable or 
+//immutable based on its type and knowledgebase content. If the particular type of ?var is 
+//marked as mutable or immutable in the knowledgebase then these two functions will detect them
+
+ImMutableVar(?var):-SetType(?anynode1,?var,?type),ImMutable(?type).
+MutableVar(?var):-SetType(?anynode1,?var,?type),PropTaint(?type,?anyMethod).
+//----------------------------------------------------------------------------------------------
+
+//----------------------------------------------------------------------------------------------
+//temp relations to tag tainted variables
+TaintedVar(?var):-NonPropagatingTaint(?methodname,?var).
+TaintedVar(?var):-PropagatingTaint(?methodname,?var).
+TaintedVar(?var):-TaintedVar(?var1),Assign(?nodeid,?anyinstance,?var,?var1).
+//tainted due to constructor
+TaintedVar(?var):-TaintedVar(?var1),Invoke(?nodeid,'_constructor',?int,?var),
+				  InVar(?nodeid,'_constructor',?var1).
+TaintedVar(?var):-TaintedVar(?var1),SetInvokeParam(?nodeid,?methodname,'0',?var),
+				  SetinvokeParam(?nodeid,?methodname,?anyint,?var1),?anyint!='0',
+				  PropTaint(?type,?methodname),SetType(?somenode,?var,?type).
+
+TaintedVar(?var):-TaintedVar(?var1),Invoke(?nodeid,?methodname,?int,?var),
+				  SetType(?somenode,?var,?type),PropTaint(?type,?methodname),
+				  SetinvokeParam(?nodeid,?methodname,?anyint,?var1).
+TaintedVar(?var):-TaintedVar(?var1),Invoke(?nodeid,?methodname,?int,?var),
+				  SetType(?somenode,?var,?type),PropTaint(?type,?methodname),
+				  SetinvokeParam(?nodeid,?methodname,?int,?var1).
+				  
+TaintedVar(?var):-TaintedVar(?var1),StaticInvoke(?nodeid,?methodname,?int,?var),
+				  SetType(?somenode,?var,?type),PropTaint(?type,?methodname),
+				  SetinvokeParam(?nodeid,?methodname,?anyint,?var1).
+TaintedVar(?var):-TaintedVar(?var1),StaticInvoke(?nodeid,?methodname,?int,?var),
+				  SetType(?somenode,?var,?type),PropTaint(?type,?methodname),
+				  SetinvokeParam(?nodeid,?methodname,?int,?var1).
+				  
+TaintedVar(?var):-TaintedVar(?var1),VirtualInvoke(?nodeid,?methodname,?int,?var),
+				  SetType(?somenode,?var,?type),PropTaint(?type,?methodname),
+				  SetinvokeParam(?nodeid,?methodname,?anyint,?var1).
+TaintedVar(?var):-TaintedVar(?var1),VirtualInvoke(?nodeid,?methodname,?int,?var),
+				  SetType(?somenode,?var,?type),PropTaint(?type,?methodname),
+				  SetInvokeParam(?nodeid,?methodname,?int,?var1).
+				  
+TaintedVar(?var):-TaintedVar(?var1),InterfaceInvoke(?nodeid,?methodname,?int,?var),
+				  SetType(?somenode,?var,?type),PropTaint(?type,?methodname),
+				  SetinvokeParam(?nodeid,?methodname,?anyint,?var1).
+TaintedVar(?var):-TaintedVar(?var1),InterfaceInvoke(?nodeid,?methodname,?int,?var),
+				  SetType(?somenode,?var,?type),PropTaint(?type,?methodname),
+				  SetinvokeParam(?nodeid,?methodname,?int,?var1).
+				  
+TaintedVar(?var):-TaintedVar(?var1),SpecialInvoke(?nodeid,?methodname,?int,?var),
+				  SetType(?somenode,?var,?type),PropTaint(?type,?methodname),
+				  SetinvokeParam(?nodeid,?methodname,?anyint,?var1).
+TaintedVar(?var):-TaintedVar(?var1),SpecialInvoke(?nodeid,?methodname,?int,?var),
+				  SetType(?somenode,?var,?type),PropTaint(?type,?methodname),
+				  SetinvokeParam(?nodeid,?methodname,?int,?var1).
+			
+//----------------------------------------------------------------------------------------------
+
+//----------------------------------------------------------------------------------------------
+//NonPropagatingTaint will detect the method name and the immutable object ref/variable which is 
+//tainted by a vulnarable method. Like a tainted function has returned some value which is 
+//stored in a String object.
+
+NonPropagatingTaint(?methodname,?var1):-TaintVuln(?methodname),
+									   InterfaceInvoke(?node,?methodname,?int,?var),
+                                       Assign(?node1,?object,?var1,?var),ImMutableVar(?var1).
+									  
+NonPropagatingTaint(?methodname,?var1):-TaintVuln(?methodname),
+									   VirtualInvoke(?node,?methodname,?int,?var),
+                                       Assign(?node1,?object,?var1,?var),ImMutableVar(?var1).
+									   
+NonPropagatingTaint(?methodname,?var1):-TaintVuln(?methodname),
+									   Invoke(?node,?methodname,?int,?var),
+                                       Assign(?node1,?object,?var1,?var),ImMutableVar(?var1).
+//detect contamination from a tainted immutable variable to another variable
+
+NonPropagatingTaint(?methodname,?var1):-TaintedVar(?var2),Assign(?node,?object,?var1,?var2),
+									    TaintVuln(?methodname).
+//-----------------------------------------------------------------------------------------------
+
+
+//-----------------------------------------------------------------------------------------
+//propagating taint is related with the variables which are mutable.
+//String s=taintsource();
+//StringBuffer stb=new StringBuffer("hi");
+//stb=stb.append(s);
+//or
+//stb=stb.append(taintsource());
+//where taintsource() retuens String of StringBuffer
+
+PropagatingTaint(?methodname,?var1):-PropTaint(?objectType,?methodname),MutableVar(?var1),
+									 SetInvokeParam(?nodeid,?methodname,'0',?var1),
+									 SetInvokeParam(?nodeid,?methodname,'1',?var2),
+                                     NonPropagatingTaint(?vmethodname,?var2).
+                                     
+PropagatingTaint(?methodname,?var1):-PropagatingTaint(?methodname,?var2),
+									 Assign(?node,?object,?var1,?var2).
+	
+//not needed	
+//PropagatingTaint(?methodname,?var2):-PropTaint(?objectType,?methodname),MutableVar(?var1),
+//									 SetInvokeParam(?nodeid,?methodname,'1',?var1),
+//									 SetInvokeParam(?nodeid,?methodname,'0',?var2),
+//                                     NonPropagatingTaint(?vmethodname,?var2).
+//-----------------------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------------------
+//vulnarable methods
+//this relation will tag the line nos for vulnerability. It will check for vulnarable variable
+//which are tagged by TaintedVar(?var) relation. The origin of any tainted var is tainted souce
+//so we need not have to check for TaintedSource again. Vulnarable(?nodeid) also checks if the
+//tainted variables are passing through the sink or not which is added in the knowledgebase.
+//It checks the sink by using the method name and also the type name on which the method is 
+//invoked. There are 4 version as there are four types of invoke statements
+
+Vulnarable(?nodeid):-Invoke(?nodeid,?methodname,?int,?varname),
+					 SetType(?somenode,?varname,?type),
+					 TaintSink(?type,?methodname),
+					 SetInvokeParam(?nodeid,?methodname,?someint,?var2),
+					 ?someint!='0',
+					 TaintedVar(?var2).
+					 
+					 
+Vulnarable(?nodeid):-StaticInvoke(?nodeid,?methodname,?int,?varname),
+					 SetType(?somenode,?varname,?type),
+					 TaintSink(?type,?methodname),
+					 SetInvokeParam(?nodeid,?methodname,?someint,?var2),
+					 ?someint!='0',
+					 TaintedVar(?var2).
+					 
+Vulnarable(?nodeid):-VirtualInvoke(?nodeid,?methodname,?int,?varname),
+					 SetType(?somenode,?varname,?type),
+					 TaintSink(?type,?methodname),
+					 SetInvokeParam(?nodeid,?methodname,?someint,?var2),
+					 ?someint!='0',
+					 TaintedVar(?var2).
+					 
+Vulnarable(?nodeid):-InterfaceInvoke(?nodeid,?methodname,?int,?varname),
+					 SetType(?somenode,?varname,?type),
+					 TaintSink(?type,?methodname),
+					 SetInvokeParam(?nodeid,?methodname,?someint,?var2),
+					 ?someint!='0',
+					 TaintedVar(?var2).
+					 
+Vulnarable(?nodeid):-SpecialInvoke(?nodeid,?methodname,?int,?varname),
+					 SetType(?somenode,?varname,?type),
+					 TaintSink(?type,?methodname),
+					 SetInvokeParam(?nodeid,?methodname,?someint,?var2),
+					 ?someint!='0',
+					 TaintedVar(?var2).
+					 
+//for executeQuery where the parameters are not exposed in the parameter rather 
+//in live variable list (we only need to check in var list)
+
+Vulnarable(?nodeid):-Invoke(?nodeid,?methodname,?int,?varname),
+					 SetInvokeParam(?nodeid,?methodname,'0',?varx),
+					 SetType(?somenode,?varx,?type),
+					 TaintSink(?type,?methodname),
+					 InVar(?nodeid,?methodname,?var2),
+					 TaintedVar(?var2).
+					 
+					 
+Vulnarable(?nodeid):-StaticInvoke(?nodeid,?methodname,?int,?varname),
+				     SetInvokeParam(?nodeid,?methodname,'0',?varx),
+					 SetType(?somenode,?varx,?type),
+					 TaintSink(?type,?methodname),
+					 InVar(?nodeid,?methodname,?var2),
+					 TaintedVar(?var2).
+					 
+Vulnarable(?nodeid):-VirtualInvoke(?nodeid,?methodname,?int,?varname),
+					 SetInvokeParam(?nodeid,?methodname,'0',?varx),
+					 SetType(?somenode,?varx,?type),
+					 TaintSink(?type,?methodname),
+					 InVar(?nodeid,?methodname,?var2),
+					 TaintedVar(?var2).
+					 
+Vulnarable(?nodeid):-InterfaceInvoke(?nodeid,?methodname,?int,?varname),
+					 SetInvokeParam(?nodeid,?methodname,'0',?varx),
+					 SetType(?somenode,?varx,?type),
+					 TaintSink(?type,?methodname),
+					 InVar(?nodeid,?methodname,?var2),
+					 TaintedVar(?var2).
+					 
+Vulnarable(?nodeid):-SpecialInvoke(?nodeid,?methodname,?int,?varname),
+					 SetInvokeParam(?nodeid,?methodname,'0',?varx),
+					 SetType(?somenode,?varx,?type),
+					 TaintSink(?type,?methodname),
+					 InVar(?nodeid,?methodname,?var2),
+					 TaintedVar(?var2).
+//-----------------------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------------------
+VulnerablePoint(?nodeid,?methodname):-Vulnarable(?nodeid),
+							  SetInvokeParam(?nodeid,?methodname,?anyint,?antvar).
+//-----------------------------------------------------------------------------------------
+
+//------------------------------------------------------------------------------------------------------
+///temp knowledgebase
+//updated knowlwdgebase
+TaintSource('javax.servlet.http.HttpServletRequest','getParameter').
+TaintSource('javax.servlet.ServletRequest','getParameter').
+
+PropTaint('java.lang.StringBuffer','append').
+PropTaint('java.lang.StringBuilder','append').
+//PropTaint('java.lang.StringBuffer','toString').
+//PropTaint('java.lang.String','toString').
+PropTaint('com.mongodb.BasicDBObjectBuilder','add').
+PropTaint('com.mongodb.DBObject','get').
+PropTaint('org.jcouchdb.document.DesignDocument','setViews').
+PropTaint('org.jcouchdb.document.View','setMap').
+//JSON sink
+TaintSink('com.mongodb.DBObject','parse').
+TaintSink('java.lang.Object','parse').
+//SQL and CQL sink
+TaintSink('java.sql.Statement','executeQuery').
+//MongoDB sink
+TaintSink('com.mongodb.DBCollection','find').
+TaintSink('com.mongodb.DBCollection','insert').
+//couchdb sink
+TaintSink('org.jcouchdb.db.Database','createDocument').
+//TaintSink('java.io.PrintStream','println').
+
+
+
+ImMutable('java.lang.String').
+
+//not needed
+//Vuln('javax.servlet.http.HttpServletRequest').
+//Mutable('java.lang.StringBuffer').
+//Mutable('java.lang.StringBulder').
+
+//end 
+//------------------------------------------------------------------------------------------------------
+
+//autogenerated knowledgebase
+PropTaint('java.lang.Exception','toString').
+PropTaint('javax.servlet.http.HttpServletResponse','toString').
+PropTaint('org.jcouchdb.db.Database','toString').
+PropTaint('java.lang.String','toString').
+PropTaint('javax.servlet.ServletOutputStream','toString').
+PropTaint('java.lang.StringBuffer','toString').
+PropTaint('org.jcouchdb.db.ServerImpl','toString').
+PropTaint('java.util.Map','toString').
+PropTaint('org.jcouchdb.document.DesignDocument','toString').
+PropTaint('org.jcouchdb.document.View','toString').
+PropTaint('java.lang.Object','toString').
+PropTaint('java.util.HashMap','toString').
+PropTaint('javax.servlet.http.HttpServletRequest','toString').
+PropTaint('CouchDBJavascriptInj','toString').
+PropTaint('java.sql.ResultSet','toString').
+PropTaint('java.lang.Class','toString').
+PropTaint('java.sql.Statement','toString').
+PropTaint('java.sql.Connection','toString').
+PropTaint('boolean','toString').
+PropTaint('CQLInjectionServlet','toString').
+PropTaint('int','toString').
+PropTaint('java.lang.String[]','toString').
+PropTaint('faint_test','toString').
+PropTaint('','toString').
+PropTaint('FooSQL','toString').
+PropTaint('com.mongodb.DB','toString').
+PropTaint('com.mongodb.DBCollection','toString').
+PropTaint('com.mongodb.Mongo','toString').
+PropTaint('com.mongodb.BasicDBObjectBuilder','toString').
+PropTaint('com.mongodb.DBObject','toString').
+PropTaint('com.mongodb.DBCursor','toString').
+PropTaint('JavascriptInjectionServlet','toString').
+PropTaint('com.mongodb.WriteResult','toString').
+PropTaint('com.mongodb.DBObject[]','toString').
+PropTaint('java.io.PrintStream','toString').
+PropTaint('JSONInjectionServlet','toString').
+PropTaint('java.io.BufferedReader','toString').
+PropTaint('java.io.FileReader','toString').
+PropTaint('java.lang.Integer[]','toString').
+PropTaint('java.util.Iterator','toString').
+PropTaint('java.io.File','toString').
+PropTaint('java.util.ArrayList','toString').
+PropTaint('java.lang.Object[]','toString').
+PropTaint('java.lang.Integer','toString').
+PropTaint('RuntimeExceptions','toString').
+PropTaint('SQLInjectionServletAll','toString').
+PropTaint('SQLInjectionServletLoop','toString').
+PropTaint('SQLInjectionServlet','toString').
